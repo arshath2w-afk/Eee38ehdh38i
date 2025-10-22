@@ -2,11 +2,9 @@ import requests
 import random
 import os
 
-# Get Discord webhook URL and role ID from environment variables
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 HADITH_ROLE_ID = os.getenv("HADITH_ROLE_ID")
 
-# List of major authentic hadith book editions
 EDITIONS = [
     "eng-bukhari",
     "eng-muslim",
@@ -40,11 +38,24 @@ def fetch_random_hadith():
         raise Exception("Hadith list empty")
 
     hadith = random.choice(hadiths)
+    # Extract details safely
+    hadith_text = hadith.get("text", "No text available")
+    hadith_number = hadith.get("hadith_number") or hadith.get("number") or "N/A"
+    book = hadith.get("book") or "N/A"
+    narrator = hadith.get("arabic_name") or hadith.get("narrator") or "N/A"
     book_name = data.get("metadata", {}).get("name", edition).replace("English:", "").strip()
-    return hadith.get("text", "No text available"), book_name
 
-def send_to_discord(hadith_text, source_name):
-    message = f"<@&{HADITH_ROLE_ID}>\n\"{hadith_text}\"\n_Source: {source_name}_"
+    return hadith_text, hadith_number, book, narrator, book_name
+
+def send_to_discord(hadith_text, hadith_number, book, narrator, source_name):
+    message = (
+        f"<@&{HADITH_ROLE_ID}>\n"
+        f"\"{hadith_text}\"\n\n"
+        f"Hadith #: {hadith_number}\n"
+        f"Book: {book}\n"
+        f"Narrator: {narrator}\n"
+        f"_Source: {source_name}_"
+    )
 
     payload = {"content": message}
     response = requests.post(WEBHOOK_URL, json=payload)
@@ -56,7 +67,8 @@ def send_to_discord(hadith_text, source_name):
 
 if __name__ == "__main__":
     try:
-        text, source = fetch_random_hadith()
-        send_to_discord(text, source)
+        text, hadith_number, book, narrator, source = fetch_random_hadith()
+        send_to_discord(text, hadith_number, book, narrator, source)
     except Exception as e:
         print("Error:", e)
+        
