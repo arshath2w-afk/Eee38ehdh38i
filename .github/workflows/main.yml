@@ -1,0 +1,25 @@
+name: Daily Hadith Sender
+
+on:
+  schedule:
+    - cron: '30 1 * * *'  # Runs daily at 1:30 AM UTC (7:00 AM IST)
+
+jobs:
+  send_hadith:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Hadith Sender Script
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          HADITH_ROLE_ID: ${{ secrets.HADITH_ROLE_ID }}
+        run: python hadith_ping.py
