@@ -1,0 +1,29 @@
+name: Daily Random Quran Ayah
+
+on:
+  schedule:
+    - cron: '30 1 * * *'  # 7:00 AM IST (UTC+5:30 is 1:30 UTC)
+  workflow_dispatch:      # Allows manual triggering from GitHub UI
+
+jobs:
+  send_random_ayah:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Random Quran Ayah Sender
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          QURAN_ROLE_ID: ${{ secrets.QURAN_ROLE_ID }}
+        run: python random_ayah_sender.py --manual
+        
