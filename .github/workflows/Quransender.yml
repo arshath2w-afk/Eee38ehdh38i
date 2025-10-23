@@ -1,0 +1,29 @@
+name: Daily Quran Recitation Sender
+
+on:
+  schedule:
+    - cron: '30 1 * * *'  # 7:00 AM IST (UTC+5:30 is 1:30 UTC)
+  workflow_dispatch:      # Manual trigger
+
+jobs:
+  send_quran_recitation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Quran Recitation Sender
+        env:
+          WEBHOOK_URL_RECITATION: ${{ secrets.WEBHOOK_URL_RECITATION }}
+          QURAN_ROLE_ID_RECITATION: ${{ secrets.QURAN_ROLE_ID_RECITATION }}
+        run: python your_recitation_script.py
+        
