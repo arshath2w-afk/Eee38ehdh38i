@@ -2,7 +2,7 @@ import requests
 import random
 import os
 
-# Configuration - use environment variables or replace with your actual values
+# Configuration - set via environment variables or replace with actual values
 WEBHOOK_URL = os.getenv("WEBHOOK_URL") or "YOUR_DISCORD_WEBHOOK_URL"
 HADITH_ROLE_ID = os.getenv("HADITH_ROLE_ID") or "YOUR_ROLE_ID"
 HADITH_API_KEY = os.getenv("HADITH_API_KEY") or "$2y$10$sGwoTXe3EvRvSCdIuy9sDeLhOjomG6OKkT453f0iFsLYUyxDf5i2"
@@ -11,10 +11,10 @@ print(f"Loaded API Key: {HADITH_API_KEY[:4]}{'*' * (len(HADITH_API_KEY) - 8)}{HA
 print(f"Webhook URL set: {'Yes' if WEBHOOK_URL != 'YOUR_DISCORD_WEBHOOK_URL' else 'No'}")
 print(f"Hadith Role ID set: {'Yes' if HADITH_ROLE_ID != 'YOUR_ROLE_ID' else 'No'}")
 
-# Base API URLs
+# Base API URL
 HADITHS_API = "https://hadithapi.com/api/hadiths"
 
-# Valid book slugs based on hadith counts > 0 from API response
+# Valid book slugs with hadith count > 0
 BOOK_SLUGS = [
     "sahih-bukhari",
     "sahih-muslim",
@@ -26,17 +26,23 @@ BOOK_SLUGS = [
 ]
 
 def get_random_hadith(book_slug):
-    url = f"{HADITHS_API}/{book_slug}?apiKey={HADITH_API_KEY}&paginate=50"
+    params = {
+        "apiKey": HADITH_API_KEY,
+        "book": book_slug,
+        "paginate": 50
+    }
     print(f"Fetching hadiths from book '{book_slug}'...")
-    resp = requests.get(url)
+    resp = requests.get(HADITHS_API, params=params)
     if resp.status_code != 200:
         print(f"Warning: Could not fetch hadiths for '{book_slug}': {resp.status_code}")
         return None
+
     data = resp.json()
     hadiths = data.get("hadiths", {}).get("data", [])
     if not hadiths:
         print(f"Warning: No hadiths found for '{book_slug}'")
         return None
+
     return random.choice(hadiths)
 
 def send_to_discord(hadith):
