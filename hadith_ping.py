@@ -46,10 +46,20 @@ def get_random_hadith(book_slug):
 def send_to_discord(hadith):
     text = hadith.get("hadithEnglish", "No text available")
     no = hadith.get("hadithNumber", "N/A")
-    narrator = hadith.get("narrated", "Unknown Narrator")
-    book_info = hadith.get("book", {})
-    book = book_info.get("bookNameEnglish", "Unknown Book")
-    reference = hadith.get("reference", "No reference")
+
+    narrator = hadith.get("narrated") or hadith.get("narrator") or "Unknown Narrator"
+    if isinstance(narrator, dict):
+        narrator = narrator.get("name") or narrator.get("arabicName") or "Unknown Narrator"
+
+    book_info = hadith.get("book")
+    if isinstance(book_info, dict):
+        book = book_info.get("bookNameEnglish") or book_info.get("name") or "Unknown Book"
+    elif isinstance(book_info, str):
+        book = book_info
+    else:
+        book = "Unknown Book"
+
+    reference = hadith.get("reference") or hadith.get("hadithReference") or "No reference"
 
     message = (
         f"<@&{HADITH_ROLE_ID}>\n"
