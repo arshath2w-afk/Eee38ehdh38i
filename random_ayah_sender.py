@@ -2,7 +2,7 @@ import requests
 import os
 import random
 
-# Configuration - use environment variables
+# Configuration - Use environment variables or replace with actual values
 WEBHOOK_URL = os.getenv("WEBHOOK_URL_QURAN") or "YOUR_DISCORD_WEBHOOK_URL"
 QURAN_ROLE_ID = os.getenv("QURAN_ROLE_ID") or "YOUR_ROLE_ID"
 
@@ -19,9 +19,11 @@ def get_random_ayah():
     """Get a random ayah with Arabic text and English translation"""
     chapters = get_chapters()
     chapter = random.choice(chapters)
-    surah_no = chapter["surahNo"]
-    surah_name = chapter["surahName"]
-    total_ayah = chapter["totalAyah"]
+    
+    # surah_no is the index + 1 (1-indexed) because API doesn't provide surahNo property
+    surah_no = chapters.index(chapter) + 1
+    surah_name = chapter.get("surahName", "Unknown Surah")
+    total_ayah = chapter.get("totalAyah", 0)
 
     ayah_no = random.randint(1, total_ayah)
 
@@ -31,7 +33,7 @@ def get_random_ayah():
     r.raise_for_status()
     ayah = r.json()
 
-    # Extract fields based on official API response structure
+    # Extract Arabic and translation
     arabic_text = ayah.get("arabic1", ayah.get("arabic2", "Arabic text not available"))
     english_translation = ayah.get("english", "Translation not available")
 
@@ -55,22 +57,18 @@ def send_to_discord(ayah, tafsir_data):
     """Send formatted ayah with tafsir message to Discord"""
     divider = "───────────────────────────────"
     
-    # Extract tafsirs
     tafsirs = tafsir_data.get("tafsirs", [])
     tafsir_text = ""
     
     if tafsirs:
-        # Use Ibn Kathir tafsir if available
         ibn_kathir = next((t for t in tafsirs if t.get("author") == "Ibn Kathir"), None)
         if ibn_kathir:
             tafsir_content = ibn_kathir.get("content", "Tafsir not available")
-            # Truncate tafsir to avoid message length limit (Discord has 2000 char limit)
             if len(tafsir_content) > 500:
                 tafsir_text = tafsir_content[:500] + "...\n\n[Full tafsir available on Quran.com]"
             else:
                 tafsir_text = tafsir_content
         else:
-            # Fallback to first available tafsir
             tafsir_text = tafsirs[0].get("content", "Tafsir not available")[:500]
     
     message = (
