@@ -1,29 +1,35 @@
-name: Daily Quran Recitation Sender
+name: Quran Video Generator & Sender
 
 on:
   schedule:
-    - cron: '30 1 * * *'  # 7:00 AM IST (UTC+5:30 is 1:30 UTC)
-  workflow_dispatch:      # Manual trigger
+    - cron: '30 1 * * *'  # Daily at 7:00 AM IST
+  workflow_dispatch:
 
 jobs:
-  send_quran_recitation:
+  generate_and_send_video:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y fonts-amiri
 
-      - name: Install dependencies
-        run: pip install requests
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
 
-      - name: Run Quran Recitation Sender
-        env:
-          WEBHOOK_URL_RECITATION: ${{ secrets.WEBHOOK_URL_RECITATION }}
-          QURAN_ROLE_ID_RECITATION: ${{ secrets.QURAN_ROLE_ID_RECITATION }}
-        run: python your_recitation_script.py
-        
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install moviepy requests discord-webhook
+
+    - name: Run Quran video generator script
+      env:
+        WEBHOOK_URL_VIDEO: ${{ secrets.WEBHOOK_URL_VIDEO }}
+        QURAN_ROLE_ID_VIDEO: ${{ secrets.QURAN_ROLE_ID_VIDEO }}
+      run: |
+        python quran_video_sender.py
