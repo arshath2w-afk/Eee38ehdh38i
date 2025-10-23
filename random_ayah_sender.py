@@ -2,11 +2,10 @@ import requests
 import os
 import random
 
-# Configuration - set via environment variables
+# Configuration - do not hardcode secrets, use environment variables.
 WEBHOOK_URL = os.getenv("WEBHOOK_URL_QURAN") or "YOUR_DISCORD_WEBHOOK_URL"
 QURAN_ROLE_ID = os.getenv("QURAN_ROLE_ID") or "YOUR_ROLE_ID"
 
-# Quran.com API base URL
 BASE_API = "https://api.quran.com/api/v4"
 
 def get_chapters():
@@ -17,47 +16,32 @@ def get_chapters():
     return r.json()["chapters"]
 
 def get_random_ayah():
-    """Get a random ayah with Arabic text and English translation"""
-    # Get all chapters
+    """Get a random ayah (Arabic and English Translation) using API /verses/by_key/{chapter}:{verse}"""
     chapters = get_chapters()
-    
-    # Pick a random chapter
     chapter = random.choice(chapters)
     chapter_number = chapter["id"]
+    chapter_name = chapter["name_simple"]
     verses_count = chapter["verses_count"]
-    
-    # Pick a random verse number in that chapter
+
     verse_number = random.randint(1, verses_count)
-    
-    # Fetch the specific verse with translation
-    url = f"{BASE_API}/verses/by_chapter/{chapter_number}"
+
+    url = f"{BASE_API}/verses/by_key/{chapter_number}:{verse_number}"
     params = {
-        "words": "false",
-        "translations": "131",  # Saheeh International translation
-        "page": verse_number,
-        "per_page": 1
+        "translations": 131  # Saheeh International, English
     }
-    
     r = requests.get(url, params=params)
     r.raise_for_status()
     data = r.json()
-    
-    # Get the verse data
-    verses = data.get("verses", [])
-    if not verses:
-        raise Exception("No verses found")
-    
-    verse = verses[0]
-    
-    # Extract fields based on official API response structure
+
+    verse = data.get("verse", {})
     arabic_text = verse.get("text_uthmani", "Arabic text not available")
     translation = ""
-    
-    if "translations" in verse and len(verse["translations"]) > 0:
-        translation = verse["translations"][0].get("text", "Translation not available")
-    
+    translations = verse.get("translations", [])
+    if translations:
+        translation = translations[0].get("text", "")
+
     return {
-        "chapter_name": chapter["name_simple"],
+        "chapter_name": chapter_name,
         "chapter_number": chapter_number,
         "verse_number": verse_number,
         "verse_key": verse.get("verse_key", f"{chapter_number}:{verse_number}"),
@@ -66,9 +50,7 @@ def get_random_ayah():
     }
 
 def send_to_discord(ayah):
-    """Send formatted ayah message to Discord"""
     divider = "───────────────────────────────"
-    
     message = (
         f"{divider}\n"
         f"<@&{QURAN_ROLE_ID}>\n\n"
@@ -79,7 +61,7 @@ def send_to_discord(ayah):
         f"_Source: Quran.com_\n"
         f"{divider}"
     )
-    
+
     res = requests.post(WEBHOOK_URL, json={"content": message})
     if res.status_code not in (200, 204):
         print("Failed to send message:", res.text)
@@ -92,3 +74,4 @@ if __name__ == "__main__":
         send_to_discord(ayah)
     except Exception as e:
         print("Error:", e)
+        
