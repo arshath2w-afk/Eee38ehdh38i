@@ -1,84 +1,87 @@
 import requests
 import os
 import random
-import json
 
 # Configuration - use environment variables
 WEBHOOK_URL = os.getenv("WEBHOOK_URL_QURAN") or "YOUR_DISCORD_WEBHOOK_URL"
 QURAN_ROLE_ID = os.getenv("QURAN_ROLE_ID") or "YOUR_ROLE_ID"
 
-BASE_API = "https://api.quran.com/api/v4"
+BASE_API = "https://quranapi.pages.dev/api"
 
 def get_chapters():
     """Fetch all chapters from Quran API"""
-    url = f"{BASE_API}/chapters"
+    url = f"{BASE_API}/surah.json"
     r = requests.get(url)
     r.raise_for_status()
-    return r.json()["chapters"]
+    return r.json()
 
 def get_random_ayah():
     """Get a random ayah with Arabic text and English translation"""
     chapters = get_chapters()
     chapter = random.choice(chapters)
-    chapter_number = chapter["id"]
-    chapter_name = chapter["name_simple"]
-    verses_count = chapter["verses_count"]
+    surah_no = chapter["surahNo"]
+    surah_name = chapter["surahName"]
+    total_ayah = chapter["totalAyah"]
 
-    verse_number = random.randint(1, verses_count)
+    ayah_no = random.randint(1, total_ayah)
 
-    # Fetch verse with Arabic text and translation
-    url = f"{BASE_API}/verses/by_key/{chapter_number}:{verse_number}"
-    params = {
-        "translations": "131",  # Saheeh International translation ID
-        "fields": "text_uthmani"  # Request Arabic text field
-    }
-    
-    r = requests.get(url, params=params)
+    # Fetch the specific ayah
+    url = f"{BASE_API}/{surah_no}/{ayah_no}.json"
+    r = requests.get(url)
     r.raise_for_status()
-    data = r.json()
+    ayah = r.json()
 
-    verse = data.get("verse", {})
-    
-    # Debug: Print full response to see structure
-    print("=== DEBUG: Full verse JSON ===")
-    print(json.dumps(verse, indent=2, ensure_ascii=False))
-    print("=== END DEBUG ===")
-    
-    # Extract Arabic text
-    arabic_text = verse.get("text_uthmani", "Arabic text not available")
-    
-    # Extract translation - check multiple possible locations
-    translation = "Translation not available"
-    
-    # Try getting translation from translations array
-    if "translations" in verse and verse["translations"]:
-        translation = verse["translations"][0].get("text", "Translation not available")
-    
-    # If still not available, try from translation field directly
-    if translation == "Translation not available" and "translation" in verse:
-        translation = verse["translation"].get("text", "Translation not available")
+    # Extract fields based on official API response structure
+    arabic_text = ayah.get("arabic1", ayah.get("arabic2", "Arabic text not available"))
+    english_translation = ayah.get("english", "Translation not available")
 
     return {
-        "chapter_name": chapter_name,
-        "chapter_number": chapter_number,
-        "verse_number": verse_number,
-        "verse_key": verse.get("verse_key", f"{chapter_number}:{verse_number}"),
+        "surah_name": surah_name,
+        "surah_no": surah_no,
+        "ayah_no": ayah_no,
         "arabic_text": arabic_text,
-        "translation": translation
+        "english_translation": english_translation,
+        "verse_key": f"{surah_no}:{ayah_no}"
     }
 
-def send_to_discord(ayah):
-    """Send formatted ayah message to Discord"""
+def get_tafsir(surah_no, ayah_no):
+    """Fetch tafsir (tafseer) for a specific verse"""
+    url = f"{BASE_API}/tafsir/{surah_no}_{ayah_no}.json"
+    r = requests.get(url)
+    r.raise_for_status()
+    return r.json()
+
+def send_to_discord(ayah, tafsir_data):
+    """Send formatted ayah with tafsir message to Discord"""
     divider = "───────────────────────────────"
+    
+    # Extract tafsirs
+    tafsirs = tafsir_data.get("tafsirs", [])
+    tafsir_text = ""
+    
+    if tafsirs:
+        # Use Ibn Kathir tafsir if available
+        ibn_kathir = next((t for t in tafsirs if t.get("author") == "Ibn Kathir"), None)
+        if ibn_kathir:
+            tafsir_content = ibn_kathir.get("content", "Tafsir not available")
+            # Truncate tafsir to avoid message length limit (Discord has 2000 char limit)
+            if len(tafsir_content) > 500:
+                tafsir_text = tafsir_content[:500] + "...\n\n[Full tafsir available on Quran.com]"
+            else:
+                tafsir_text = tafsir_content
+        else:
+            # Fallback to first available tafsir
+            tafsir_text = tafsirs[0].get("content", "Tafsir not available")[:500]
     
     message = (
         f"{divider}\n"
         f"<@&{QURAN_ROLE_ID}>\n\n"
         f"**Arabic:** {ayah['arabic_text']}\n\n"
-        f"**Translation:** {ayah['translation']}\n\n"
-        f"**Surah:** {ayah['chapter_name']} ({ayah['verse_key']})\n"
-        f"**Verse:** {ayah['verse_number']}\n\n"
-        f"_Source: Quran.com_\n"
+        f"**Translation:** {ayah['english_translation']}\n\n"
+        f"**Surah:** {ayah['surah_name']} ({ayah['verse_key']})\n"
+        f"**Verse:** {ayah['ayah_no']}\n\n"
+        f"**Tafsir (Ibn Kathir):**\n{tafsir_text}\n\n"
+        f"_Source: QuranAPI_\n"
         f"{divider}"
     )
     
@@ -86,11 +89,12 @@ def send_to_discord(ayah):
     if res.status_code not in (200, 204):
         print("Failed to send message:", res.text)
     else:
-        print(f"Random Ayah sent to Discord: {ayah['verse_key']}")
+        print(f"Random Ayah with Tafsir sent to Discord: {ayah['verse_key']}")
 
 if __name__ == "__main__":
     try:
         ayah = get_random_ayah()
-        send_to_discord(ayah)
+        tafsir_data = get_tafsir(ayah["surah_no"], ayah["ayah_no"])
+        send_to_discord(ayah, tafsir_data)
     except Exception as e:
         print("Error:", e)
