@@ -1,6 +1,7 @@
 import requests
 import os
 import random
+import json
 
 # Configuration - use environment variables
 WEBHOOK_URL = os.getenv("WEBHOOK_URL_QURAN") or "YOUR_DISCORD_WEBHOOK_URL"
@@ -25,12 +26,11 @@ def get_random_ayah():
 
     verse_number = random.randint(1, verses_count)
 
-    # Use the correct endpoint with proper fields parameter
+    # Fetch verse with Arabic text and translation
     url = f"{BASE_API}/verses/by_key/{chapter_number}:{verse_number}"
     params = {
         "translations": "131",  # Saheeh International translation ID
-        "fields": "text_uthmani",  # Request Arabic text field explicitly
-        "translation_fields": "text"  # Request translation text field
+        "fields": "text_uthmani"  # Request Arabic text field
     }
     
     r = requests.get(url, params=params)
@@ -39,14 +39,24 @@ def get_random_ayah():
 
     verse = data.get("verse", {})
     
+    # Debug: Print full response to see structure
+    print("=== DEBUG: Full verse JSON ===")
+    print(json.dumps(verse, indent=2, ensure_ascii=False))
+    print("=== END DEBUG ===")
+    
     # Extract Arabic text
     arabic_text = verse.get("text_uthmani", "Arabic text not available")
     
-    # Extract translation
+    # Extract translation - check multiple possible locations
     translation = "Translation not available"
-    translations = verse.get("translations", [])
-    if translations and len(translations) > 0:
-        translation = translations[0].get("text", "Translation not available")
+    
+    # Try getting translation from translations array
+    if "translations" in verse and verse["translations"]:
+        translation = verse["translations"][0].get("text", "Translation not available")
+    
+    # If still not available, try from translation field directly
+    if translation == "Translation not available" and "translation" in verse:
+        translation = verse["translation"].get("text", "Translation not available")
 
     return {
         "chapter_name": chapter_name,
