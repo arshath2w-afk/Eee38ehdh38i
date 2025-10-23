@@ -2,77 +2,69 @@ import requests
 import random
 import os
 
-# ------------------------
-# Configuration
-# ------------------------
+# Environment variables (for GitHub Actions or local use)
 WEBHOOK_URL = os.getenv("WEBHOOK_URL") or "YOUR_DISCORD_WEBHOOK_URL"
 HADITH_ROLE_ID = os.getenv("HADITH_ROLE_ID") or "YOUR_ROLE_ID"
 HADITH_API_KEY = os.getenv("HADITH_API_KEY") or "$2y$10$sGwoTXe3EvRvSCdIuy9sDeLhOjomG6OKkT453f0iFsLYUyxDf5i2"
 
-# Hadith API base URL
-BASE_URL = "https://hadithapi.com/api/hadiths"
+# Base API URL
+BOOKS_URL = f"https://hadithapi.com/api/books?apiKey={HADITH_API_KEY}"
+HADITHS_URL = "https://hadithapi.com/api/hadiths"
 
-# List of authentic book slugs (from docs)
-BOOKS = [
-    "sahih-bukhari",
-    "sahih-muslim",
-    "al-tirmidhi",
-    "abu-dawood",
-    "ibn-e-majah",
-    "sunan-nasai",
-    "mishkat",
-    "musnad-ahmad",
-    "al-silsila-sahiha"
-]
+def get_books():
+    """Fetch list of valid book slugs"""
+    res = requests.get(BOOKS_URL)
+    if res.status_code != 200:
+        raise Exception(f"Failed to load books: {res.text}")
+    books = res.json().get("books", [])
+    if not books:
+        raise Exception("No books found.")
+    return books
 
-def get_random_hadith():
-    """Fetch a random hadith from a random authentic book."""
-    book_slug = random.choice(BOOKS)
-    url = f"{BASE_URL}?apiKey={HADITH_API_KEY}&book={book_slug}&paginate=50"
-
+def get_random_hadith(book_slug):
+    """Get random hadith from given book slug"""
+    url = f"{HADITHS_URL}/{book_slug}?apiKey={HADITH_API_KEY}"
     res = requests.get(url)
     if res.status_code != 200:
-        raise Exception(f"API error: {res.status_code} - {res.text}")
-
+        raise Exception(f"Hadith fetch failed: {res.text}")
     data = res.json()
     hadiths = data.get("hadiths", {}).get("data", [])
     if not hadiths:
-        raise Exception("No hadith data returned")
+        raise Exception("No hadiths found in this book.")
+    return random.choice(hadiths)
 
-    hadith = random.choice(hadiths)
-
-    # Extract important fields safely
+def send_to_discord(hadith):
+    """Send properly formatted hadith message to Discord"""
     text = hadith.get("hadithEnglish", "No text available")
-    number = hadith.get("hadithNumber", "N/A")
+    hadith_no = hadith.get("hadithNumber", "N/A")
     narrator = hadith.get("narrated", "Unknown Narrator")
-    book = hadith.get("book", {}).get("bookNameEnglish", "Unknown Book")
+    book_name = hadith.get("book", {}).get("bookNameEnglish", "Unknown Book")
     reference = hadith.get("reference", "No reference")
 
-    return text, number, narrator, book, reference
-
-def send_to_discord(text, number, narrator, book, reference):
-    """Send the hadith nicely formatted to Discord webhook."""
     message = (
-        f"<@&{HADITH_ROLE_ID}>\n"
-        f"\"{text}\"\n\n"
-        f"Hadith #: {number}\n"
-        f"Book: {book}\n"
+        f"<@&{HADITH_ROLE_ID}>"
+        f"\n\"{text}\"\n\n"
+        f"Hadith #: {hadith_no}\n"
+        f"Book: {book_name}\n"
         f"Narrator: {narrator}\n"
         f"Reference: {reference}\n"
         f"_Source: HadithAPI.com_"
     )
 
-    payload = {"content": message}
-    res = requests.post(WEBHOOK_URL, json=payload)
-
+    res = requests.post(WEBHOOK_URL, json={"content": message})
     if res.status_code != 204:
         print("Failed to send:", res.text)
     else:
-        print(f"Hadith sent successfully from {book}")
+        print(f"Hadith sent successfully from {book_name}")
 
 if __name__ == "__main__":
     try:
-        text, number, narrator, book, reference = get_random_hadith()
-        send_to_discord(text, number, narrator, book, reference)
-    except Exception as err:
-        print("Error:", err)
+        books = get_books()
+        random_book = random.choice(books)
+        book_slug = random_book.get("bookSlug")
+
+        print(f"Fetching hadith from: {book_slug}")
+        hadith = get_random_hadith(book_slug)
+        send_to_discord(hadith)
+    except Exception as e:
+        print("Error:", e)
