@@ -11,10 +11,8 @@ print(f"Loaded API Key: {HADITH_API_KEY[:4]}{'*' * (len(HADITH_API_KEY) - 8)}{HA
 print(f"Webhook URL set: {'Yes' if WEBHOOK_URL != 'YOUR_DISCORD_WEBHOOK_URL' else 'No'}")
 print(f"Hadith Role ID set: {'Yes' if HADITH_ROLE_ID != 'YOUR_ROLE_ID' else 'No'}")
 
-# Base API URL
 HADITHS_API = "https://hadithapi.com/api/hadiths"
 
-# Valid book slugs with hadith count > 0
 BOOK_SLUGS = [
     "sahih-bukhari",
     "sahih-muslim",
@@ -49,8 +47,9 @@ def send_to_discord(hadith):
     text = hadith.get("hadithEnglish", "No text available")
     no = hadith.get("hadithNumber", "N/A")
     narrator = hadith.get("narrated", "Unknown Narrator")
-    book = hadith.get("book", {}).get("bookNameEnglish", "Unknown Book")
-    ref = hadith.get("reference", "No reference")
+    book_info = hadith.get("book", {})
+    book = book_info.get("bookNameEnglish", "Unknown Book")
+    reference = hadith.get("reference", "No reference")
 
     message = (
         f"<@&{HADITH_ROLE_ID}>\n"
@@ -58,7 +57,7 @@ def send_to_discord(hadith):
         f"Hadith #: {no}\n"
         f"Book: {book}\n"
         f"Narrator: {narrator}\n"
-        f"Reference: {ref}\n"
+        f"Reference: {reference}\n"
         f"_Source: HadithAPI.com_"
     )
 
