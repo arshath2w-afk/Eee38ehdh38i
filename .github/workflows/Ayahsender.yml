@@ -23,7 +23,7 @@ jobs:
 
       - name: Run Random Quran Ayah Sender
         env:
-          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
-          QURAN_ROLE_ID: ${{ secrets.QURAN_ROLE_ID }}
+          WEBHOOK_URL_QURAN: ${{ secrets.WEBHOOK_URL_QURAN }}   # Separate secret for Quran webhook
+          QURAN_ROLE_ID: ${{ secrets.QURAN_ROLE_ID }}           # Quran role ID secret
         run: python random_ayah_sender.py --manual
         
