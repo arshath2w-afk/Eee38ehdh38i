@@ -1,6 +1,7 @@
 import requests
 import random
 import os
+import json
 
 # Configuration - set via environment variables or replace with actual values
 WEBHOOK_URL = os.getenv("WEBHOOK_URL") or "YOUR_DISCORD_WEBHOOK_URL"
@@ -15,7 +16,7 @@ HADITHS_API = "https://hadithapi.com/api/hadiths"
 
 BOOK_SLUGS = [
     "sahih-bukhari",
-    "sahih-muslim",
+    "sahih-muslim", 
     "al-tirmidhi",
     "abu-dawood",
     "ibn-e-majah",
@@ -44,22 +45,59 @@ def get_random_hadith(book_slug):
     return random.choice(hadiths)
 
 def send_to_discord(hadith):
-    text = hadith.get("hadithEnglish", "No text available")
-    no = hadith.get("hadithNumber", "N/A")
-
-    narrator = hadith.get("narrated") or hadith.get("narrator") or "Unknown Narrator"
-    if isinstance(narrator, dict):
-        narrator = narrator.get("name") or narrator.get("arabicName") or "Unknown Narrator"
-
+    # Debug: Print the full JSON structure to understand the response
+    print("=== DEBUG: Full Hadith JSON Structure ===")
+    print(json.dumps(hadith, indent=2, ensure_ascii=False))
+    print("=== END DEBUG ===")
+    
+    # Extract text - try multiple possible field names
+    text = (hadith.get("hadithEnglish") or 
+            hadith.get("hadith") or 
+            hadith.get("text") or 
+            hadith.get("english") or 
+            "No text available")
+    
+    # Extract hadith number - try multiple possible field names  
+    no = (hadith.get("hadithNumber") or 
+          hadith.get("hadith_number") or
+          hadith.get("number") or
+          hadith.get("id") or
+          "N/A")
+    
+    # Extract narrator - try multiple approaches
+    narrator = "Unknown Narrator"
+    narrator_candidates = [
+        hadith.get("narrated"),
+        hadith.get("narrator"), 
+        hadith.get("rawi"),
+        hadith.get("chain")
+    ]
+    for candidate in narrator_candidates:
+        if candidate:
+            if isinstance(candidate, dict):
+                narrator = candidate.get("name") or candidate.get("arabicName") or candidate.get("english") or "Unknown Narrator"
+            elif isinstance(candidate, str):
+                narrator = candidate
+            break
+    
+    # Extract book name - try multiple approaches
+    book = "Unknown Book"
     book_info = hadith.get("book")
     if isinstance(book_info, dict):
-        book = book_info.get("bookNameEnglish") or book_info.get("name") or "Unknown Book"
+        book = (book_info.get("bookNameEnglish") or 
+                book_info.get("name") or 
+                book_info.get("bookName") or
+                book_info.get("title") or
+                "Unknown Book")
     elif isinstance(book_info, str):
         book = book_info
-    else:
-        book = "Unknown Book"
-
-    reference = hadith.get("reference") or hadith.get("hadithReference") or "No reference"
+    
+    # Extract reference - try multiple possible field names
+    reference = (hadith.get("reference") or 
+                hadith.get("hadithReference") or
+                hadith.get("ref") or
+                hadith.get("source") or
+                "No reference")
 
     message = (
         f"<@&{HADITH_ROLE_ID}>\n"
