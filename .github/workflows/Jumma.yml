@@ -23,5 +23,5 @@ jobs:
 
     - name: Run Jummah script
       env:
-        WEBHOOK_URL: ${{ secrets.8EBHOOK_URL }}
+        WEBHOOK_URL: ${{ secrets.WEEBHOOK_URL }}
       run: python Sigma.py
