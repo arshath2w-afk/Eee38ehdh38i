@@ -1,39 +1,54 @@
-import requests
+# Sigma.py
 import os
+import sys
+import requests
+from datetime import datetime
+import pytz
 
-WEBHOOK_URL = os.getenv("WEEBHOOK_URL")
+WEBHOOK_URL = os.getenv("JUMMAH_HOOK")
 
-message = """
-**🌙 JUMMAH MUBARAK 🌙**
+def abort(msg, code=1):
+    print("ERROR:", msg)
+    sys.exit(code)
 
-**Qur'an 62:9:**  
-> *“O you who believe! When the call is made for the prayer on Friday, hasten to the remembrance of Allah…”*
+# Validate webhook
+if not WEBHOOK_URL:
+    abort("JUMMAH_HOOK secret not found. Add it in Repo Settings → Secrets → Actions.")
+if not (WEBHOOK_URL.startswith("http://") or WEBHOOK_URL.startswith("https://")):
+    abort(f"JUMMAH_HOOK looks invalid: {WEBHOOK_URL}")
 
-**Sahih Muslim:**  
-> *“The best day on which the sun has risen is Friday.”*
+content = "**🌙 JUMMAH MUBARAK 🌙**\n\nMake abundant salawat and dhikr. Recite Surah al-Kahf today."
 
-**Sunan Abu Dawud (Sahih):**  
-> *“Send abundant salawat upon me on Fridays.”*
+embed = {
+    "title": "Jummah Reminder",
+    "description": (
+        "**Qur'an 62:9**\n"
+        "\"O you who believe! When the call is made for the prayer on Friday, hasten to the remembrance of Allah...\"\n\n"
+        "**Hadith (Sahih Muslim):**\n"
+        "\"The best day on which the sun has risen is Friday.\"\n\n"
+        "**Sunnahs Today:**\n"
+        "- Recite **Surah al-Kahf**.\n"
+        "- Take **ghusl** and wear clean clothes.\n"
+        "- Apply **perfume** (men).\n"
+        "- Come early to Jumu'ah.\n"
+        "- Make **dua** and send abundant **salawat**.\n"
+    ),
+    "color": 0x2ECC71,
+    "timestamp": datetime.now(pytz.timezone("Asia/Kolkata")).isoformat()
+}
 
----
+payload = {
+    "content": content,
+    "embeds": [embed]
+}
 
-## 🌿 **Sunnahs of Jummah**
-- Recite **Surah al-Kahf**  
-- Take **ghusl**  
-- Wear **clean clothes**  
-- Apply **perfume** (for men)  
-- Go early to the masjid  
-- Send plenty of **salawat**  
-- Make **dua**, especially before Maghrib  
-- Read Surah **As-Sajdah** & **Al-Insan** in Fajr (Sunnah of the Prophet ﷺ)
-
----
-
-## 🤲 **Dua Reminder**
-Use today to seek forgiveness, increase dhikr, and make heartfelt dua.  
-May Allah accept your deeds and grant you barakah.
-
-**Jummah Mubarak!**
-"""
-
-requests.post(WEBHOOK_URL, json={"content": message})
+try:
+    resp = requests.post(WEBHOOK_URL, json=payload, timeout=15)
+    if resp.status_code in (200, 204):
+        print("Jummah reminder sent successfully.")
+    else:
+        print(f"Failed — HTTP {resp.status_code}: {resp.text}")
+        sys.exit(2)
+except Exception as e:
+    print("Request failed:", str(e))
+    sys.exit(3)
