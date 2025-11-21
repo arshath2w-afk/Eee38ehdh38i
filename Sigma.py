@@ -1,7 +1,7 @@
 import requests
 import os
 
-WEBHOOK_URL = os.getenv("8EBHOOK_URL")
+WEBHOOK_URL = os.getenv("WEEBHOOK_URL")
 
 message = """
 **🌙 JUMMAH MUBARAK 🌙**
