@@ -17,7 +17,7 @@ if not WEBHOOK_URL:
 if not (WEBHOOK_URL.startswith("http://") or WEBHOOK_URL.startswith("https://")):
     abort(f"JUMMAH_HOOK looks invalid: {WEBHOOK_URL}")
 
-content = "**🌙 JUMMAH MUBARAK 🌙**\n\nMake abundant salawat and dhikr. Recite Surah al-Kahf today."
+content = "@here **🌙 JUMMAH MUBARAK 🌙**\n\nMake abundant salawat and dhikr. Recite Surah al-Kahf today."
 
 embed = {
     "title": "Jummah Reminder",
